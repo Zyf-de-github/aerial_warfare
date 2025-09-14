@@ -24,7 +24,7 @@ class Settings:
         self.rocket_probability=12  #1-10000
         self.rocket_max_num=3
 
-        self.remain_enemies=1     #还有x个敌人就会出现boss
+        self.remain_enemies=10     #还有x个敌人就会出现boss
         self.boss_speed=0.2
         self.boss_blood=100
         self.boss_fire_speed = 1
@@ -33,6 +33,6 @@ class Settings:
         self.life_times=2
         self.upgrade_speed=0.3
         self.upgrade_hit_times=2
-        self.grade=6
+        self.grade=1
         self.upgrade_probability=9 #6-30
 

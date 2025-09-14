@@ -2,7 +2,7 @@ import sys
 import pygame
 from pygame.examples.midi import fill_region
 
-import boss
+
 from setting import Settings
 from ship import Ship
 from bullet import Bullet
@@ -13,6 +13,8 @@ from upgrade import Upgrade
 from rocket import Rocket
 from boss import Boss
 from boss_bullet import Boss_Bullet
+from sound import Sound
+from music import Music
 import random
 
 class Fight:
@@ -24,6 +26,9 @@ class Fight:
         self.settings.screen_height=self.screen.get_height()
         self.bg_color = self.settings.bg_color
         pygame.display.set_caption('Fight')
+        self.sound = Sound()
+        self.music = Music(self)
+
         self.ship = Ship(self)
         self.boss = None
         self.bullets = pygame.sprite.Group()
@@ -44,16 +49,16 @@ class Fight:
         self.live_button = Button(self, 'Lives:'+str(self.life_times),200,50,0,0)
 
         self.instructions = [
-            "Game Instructions",
-            "Controls:",
-            "  - Arrow  keys:  Move  the  spaceship",
-            "  - Auto-fire:  Shoots  bullets  at  intervals",
-            "Objective:",
-            "  - Collect  upgrades  to  enhance  firepower(up  to  level  6)",
-            "Tips:",
-            "  - Hitting  enemies  may  drop  upgrade  items",
-            "  - Colliding  with  enemies  reduces  life  and  lowers  two  levels",
-            "  - Game  ends  when  lives  reach  0"
+            "游戏说明                         ",
+            "控制:                           ",
+            "  - 操控上下左右箭头移动飞船        ",
+            "  - 按下0退出游戏                 ",
+            "物品:                           ",
+            "  - 收集升级部件升级飞船(最高升到六级)",
+            "提示:                           ",
+            "  - 攻击敌方飞船有概率掉落升级部件    ",
+            "  - 被攻击后会受伤，你只有两条命      ",
+            "  - 火箭弹注意躲避，你无法击落它      "
         ]
 
         self.AUTO_FIRE_EVENT = pygame.USEREVENT + 1
@@ -66,9 +71,15 @@ class Fight:
         self.BOSS_FIRE_EVENT = pygame.USEREVENT + 3
         pygame.time.set_timer(self.BOSS_FIRE_EVENT, 0)  # 每 500 毫秒触发一次事件
 
+
+
+
+
+
     def run_game(self):
         while True:
                 self.check_events()
+                self.music.update()
                 if self.game_state>=2:
                     self.ship.update()
                     self.bullets.update()
@@ -90,6 +101,25 @@ class Fight:
                 self.hit_rocket()
                 self.losing_game()
 
+    def background_music(self):
+        target_music = 'boss_background' if self.game_state == 3 else 'background'
+
+        if self.current_music == target_music:
+            return
+
+        if self.current_music:
+            pygame.mixer.music.fadeout(1000)  # 淡出 1 秒
+
+        # 加载并播放目标音乐
+        try:
+            pygame.mixer.music.load(f"sound/{target_music}.wav")  # 假设文件路径与 Sound 类一致
+            pygame.mixer.music.play(-1)  # 循环播放
+            pygame.mixer.music.set_volume(0.3)  # 设置音量
+            pygame.mixer.fadein(1000)  # 淡入 1 秒
+            self.current_music = target_music  # 更新当前音乐
+        except pygame.error as e:
+            print(f"加载背景音乐 {target_music} 失败: {e}")
+
 
     def losing_game(self):
         if pygame.sprite.spritecollideany(self.ship, self.enemies):
@@ -104,10 +134,12 @@ class Fight:
                 self.explosions.add(explosion)
             explosion = Explosion(self.ship.rect.center, self)
             self.explosions.add(explosion)
+            self.sound.play('boom')
             self.enemies.empty()
             self.bullets.empty()
             self.upgrades.empty()
             self.rockets.empty()
+            self.boss_bullets.empty()
             self.live_button = Button(self, 'Lives:' + str(self.life_times), 200, 50, 0, 0)
             self.ship.__init__(self)
             if self.life_times < 0:
@@ -126,10 +158,12 @@ class Fight:
                 self.explosions.add(explosion)
             explosion = Explosion(self.ship.rect.center, self)
             self.explosions.add(explosion)
+            self.sound.play('boom')
             self.enemies.empty()
             self.bullets.empty()
             self.upgrades.empty()
             self.rockets.empty()
+            self.boss_bullets.empty()
             self.live_button = Button(self, 'Lives:' + str(self.life_times), 200, 50, 0, 0)
             self.ship.__init__(self)
             if self.life_times < 0:
@@ -145,6 +179,7 @@ class Fight:
                 self.explosions.add(explosion)
             if self.boss.boss_blood <= 0:
                 explosion = Explosion(self.boss.rect.center, self,3)  # Boss死亡时大爆炸
+                self.sound.play('big_boom')
                 self.explosions.add(explosion)
                 self.game_state=2
                 self.boss=None
@@ -159,10 +194,12 @@ class Fight:
                 self.grade = max(1, self.grade - 2)
                 explosion = Explosion(self.ship.rect.center, self, scale=1)
                 self.explosions.add(explosion)
+                self.sound.play('boom')
                 self.enemies.empty()
                 self.bullets.empty()
                 self.upgrades.empty()
                 self.rockets.empty()
+                self.boss_bullets.empty()
                 self.live_button = Button(self, 'Lives:' + str(self.life_times), 200, 50, 0, 0)
                 self.ship.__init__(self)
                 if self.life_times < 0:
@@ -189,20 +226,23 @@ class Fight:
             for enemy in hit_enemies:
                 explosion = Explosion(enemy.rect.center, self)
                 self.explosions.add(explosion)
+                self.sound.play('boom')
                 if random.randint(1, 30) <= self.settings.upgrade_probability - self.grade:
                     self.upgrade_ship(enemy.rect.center)
 
 
     def check_upgrades(self):
         collided_upgrades = pygame.sprite.spritecollide(self.ship, self.upgrades, True)
-        # 为每个被击中的敌人创建爆炸效果
         for upgrades in collided_upgrades:
             if self.grade<6:
                 self.grade += 1
+                self.sound.play('upgrade')
             else:
                 pygame.time.set_timer(self.AUTO_FIRE_EVENT, int(self.settings.super_bullets_speed*1000))
                 pygame.time.set_timer(self.SUPER_SHOOTING_EVENT_STOP, int(self.settings.super_fire_timer * 1000))
                 self.bg_color = (255, 190, 190)
+                self.sound.play('super_shot')
+
 
     def check_events(self):
         for event in pygame.event.get():
@@ -270,6 +310,7 @@ class Fight:
             if self.game_state!=3:
                 self.remain_enemies-=1
             if self.remain_enemies==0:
+                self.sound.play('dangerous')
                 self.game_state = 3
                 self.boss = Boss(self)
                 self.enemy_probability=self.settings.enemy_probability/2
@@ -337,9 +378,10 @@ class Fight:
             line_height = 40  # 每行间隔 40 像素
             total_text_height = len(self.instructions) * line_height  # 总文本高度
             start_y = (self.settings.screen_height - total_text_height) // 2  # 垂直居中的起始 y 坐标
-
+            # 使用 SysFont 指定中文字体名称（无需路径）
+            font = pygame.font.SysFont('SimHei', 28)  # 'SimHei' 是黑体，支持中文；如果无效，试 'SimSun'（宋体）
             for i, line in enumerate(self.instructions):
-                text_surface = pygame.font.Font(None, 28).render(line, True, (0, 0, 0))  # 黑色文本
+                text_surface = font.render(line, True, (0, 0, 0))  # 黑色文本，True 启用抗锯齿
                 text_rect = text_surface.get_rect()
                 text_rect.centerx = self.settings.screen_width // 2  # 水平居中
                 text_rect.y = start_y + i * line_height  # 每行间隔 40 像素

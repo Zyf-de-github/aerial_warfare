@@ -14,7 +14,7 @@ class Bullet(Sprite):
         self.image = pygame.transform.scale(self.image, (self.settings.bullet_width, self.settings.bullet_height))  # 比如 (10, 20)
         # 设置子弹初始位置（基于飞船位置）
         self.rect.midtop = ai_game.ship.rect.midtop
-        self.rect.x += x_offset  # 应用x偏移
+        self.rect.x += x_offset+20  # 应用x偏移
         self.rect.y += y_offset  # 应用y偏移
 
         # 存储浮点数位置
