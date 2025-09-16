@@ -44,6 +44,7 @@ class Fight:
         self.game_state=0   #0:开始界面 1:说明界面 2:游戏开始 3:boss战
         self.game_setting=0  #0:取消设置 1:设置
         self.life_times=self.settings.life_times
+        self.points=0
         self.play_button = Button(self, 'Play',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2-125)
         self.instruction_button = Button(self, 'instruction_button',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+25)
         self.exit_button = Button(self, 'Exit',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+175)
@@ -55,6 +56,8 @@ class Fight:
 
         self.back_button = Button(self, 'Back',200,70,self.settings.screen_width/2-100, self.settings.screen_height-125)
         self.live_button = Button(self, 'Lives:'+str(self.life_times),200,50,0,0)
+        self.points_button = Button(self, 'Points:'+str(self.points),300,50,self.settings.screen_width-300,0)
+
 
         self.instructions = [
             "游戏说明                         ",
@@ -88,7 +91,10 @@ class Fight:
         while True:
                 self.check_events()
                 self.music.update()
-                if self.game_state == 0 and self.game_state == 1:
+                if self.game_state == 0 or self.game_state == 1:
+                    self.points =0
+                    self.points_button = Button(self, 'Points:' + str(self.points), 300, 50,self.settings.screen_width - 300, 0)
+
                     pygame.mouse.set_visible(True)
                 if self.game_setting == 0:
                     self.update_screen()
@@ -159,7 +165,6 @@ class Fight:
             self.ship.__init__(self)
             if self.life_times < 0:
                 self.game_state=0
-                pygame.mouse.set_visible(True)
 
     def rocket_collisions(self):
         if pygame.sprite.spritecollideany(self.ship, self.rockets):
@@ -183,7 +188,6 @@ class Fight:
             self.ship.__init__(self)
             if self.life_times < 0:
                 self.game_state=0
-                pygame.mouse.set_visible(True)
     #击败boss
     def hit_boss(self):
         if self.boss is not None:
@@ -193,6 +197,9 @@ class Fight:
                 explosion = Explosion(bullet.rect.center, self,0.3)  # 子弹命中位置爆炸
                 self.explosions.add(explosion)
             if self.boss.boss_blood <= 0:
+                self.points += 100
+                self.points_button = Button(self, 'Points:' + str(self.points), 300, 50,self.settings.screen_width - 300, 0)
+
                 explosion = Explosion(self.boss.rect.center, self,3)  # Boss死亡时大爆炸
                 self.sound.play('big_boom')
                 self.explosions.add(explosion)
@@ -219,7 +226,6 @@ class Fight:
                 self.ship.__init__(self)
                 if self.life_times < 0:
                     self.game_state = 0
-                    pygame.mouse.set_visible(True)
 
     #碰撞后更新清理屏幕
     def clean_up(self):
@@ -239,6 +245,8 @@ class Fight:
         # 为每个被击中的敌人创建爆炸效果
         for bullet, hit_enemies in collisions.items():
             for enemy in hit_enemies:
+                self.points += 1
+                self.points_button = Button(self, 'Points:' + str(self.points), 300, 50,self.settings.screen_width - 300, 0)
                 explosion = Explosion(enemy.rect.center, self)
                 self.explosions.add(explosion)
                 self.sound.play('boom')
@@ -272,7 +280,6 @@ class Fight:
                     if self.play_button.rect.collidepoint(mouse_pos):
                         self.life_times=self.settings.life_times
                         self.live_button = Button(self, 'Lives:' + str(self.life_times), 200, 50, 0, 0)
-                        pygame.mouse.set_visible(False)
                         self.game_state = 2
                     if self.exit_button.rect.collidepoint(mouse_pos):
                         sys.exit()
@@ -285,11 +292,19 @@ class Fight:
                     if self.return_init_button.rect.collidepoint(mouse_pos):
                         self.game_state = 0
                         self.game_setting = 0
-                        pygame.mouse.set_visible(True)
                     if self.restart_button.rect.collidepoint(mouse_pos):
+                        self.points =0
                         self.game_state = 2
                         self.game_setting = 0
-                        pygame.mouse.set_visible(False)
+                        self.enemies.empty()
+                        self.bullets.empty()
+                        self.upgrades.empty()
+                        self.rockets.empty()
+                        self.boss_bullets.empty()
+                        self.grade=1
+                        self.life_times=self.settings.life_times
+                        self.live_button = Button(self, 'Lives:' + str(self.life_times), 200, 50, 0, 0)
+                        self.ship.__init__(self)
                     if self.continue_button.rect.collidepoint(mouse_pos):
                         self.game_setting = 0
 
@@ -396,7 +411,6 @@ class Fight:
             self.bullets.add(new_bullet_right_back)
 
     def setting_menu(self):
-        pygame.mouse.set_visible(True)
         self.screen.fill(self.bg_color)
         self.restart_button.draw_button()
         self.return_init_button.draw_button()
@@ -408,6 +422,7 @@ class Fight:
     def update_screen(self):
         self.screen.fill(self.bg_color)
         self.live_button.draw_button()
+        self.points_button.draw_button()
         if self.game_state== 0:
             self.play_button.draw_button()
             self.exit_button.draw_button()
