@@ -42,9 +42,17 @@ class Fight:
         self.remain_enemies=self.settings.remain_enemies
         self.grade=self.settings.grade
         self.game_state=0   #0:开始界面 1:说明界面 2:游戏开始 3:boss战
+        self.game_setting=0  #0:取消设置 1:设置
         self.life_times=self.settings.life_times
-        self.play_button = Button(self, 'Play',200,70,self.settings.screen_width/2-100, self.settings.screen_height/2-125)
+        self.play_button = Button(self, 'Play',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2-125)
         self.instruction_button = Button(self, 'instruction_button',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+25)
+        self.exit_button = Button(self, 'Exit',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+175)
+
+        self.return_init_button = Button(self, 'Return to Init',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2-125)
+        self.restart_button = Button(self, 'Restart',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+25)
+        self.continue_button = Button(self, 'Continue',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+175)
+
+
         self.back_button = Button(self, 'Back',200,70,self.settings.screen_width/2-100, self.settings.screen_height-125)
         self.live_button = Button(self, 'Lives:'+str(self.life_times),200,50,0,0)
 
@@ -52,7 +60,7 @@ class Fight:
             "游戏说明                         ",
             "控制:                           ",
             "  - 操控上下左右箭头移动飞船        ",
-            "  - 按下0退出游戏                 ",
+            "  - 按下0进入菜单                 ",
             "物品:                           ",
             "  - 收集升级部件升级飞船(最高升到六级)",
             "提示:                           ",
@@ -80,25 +88,32 @@ class Fight:
         while True:
                 self.check_events()
                 self.music.update()
-                if self.game_state>=2:
-                    self.ship.update()
-                    self.bullets.update()
-                    self.enemies.update()
-                    self.rockets.update()
-                    self.enemies_coming()
-                    self.rockets_coming()
-                if self.game_state==3:
-                    self.hit_boss()
-                    if self.boss is not None:
-                        self.boss_bullets.update()
-                        self.boss.update()
-                        self.boss_collisions()
-                self.update_screen()
+                if self.game_state == 0 and self.game_state == 1:
+                    pygame.mouse.set_visible(True)
+                if self.game_setting == 0:
+                    self.update_screen()
+                    if self.game_state>=2:
+                        pygame.mouse.set_visible(False)
+                        self.ship.update()
+                        self.bullets.update()
+                        self.enemies.update()
+                        self.rockets.update()
+                        self.enemies_coming()
+                        self.rockets_coming()
+                        if self.game_state==3:
+                            self.hit_boss()
+                            if self.boss is not None:
+                                self.boss_bullets.update()
+                                self.boss.update()
+                                self.boss_collisions()
+                elif self.game_setting == 1:
+                    pygame.mouse.set_visible(True)
+                    self.setting_menu()
                 self.clean_up()
                 self.check_collisions()
                 self.check_upgrades()
                 self.explosions.update()
-                self.hit_rocket()
+                self.rocket_collisions()
                 self.losing_game()
 
     def background_music(self):
@@ -146,7 +161,7 @@ class Fight:
                 self.game_state=0
                 pygame.mouse.set_visible(True)
 
-    def hit_rocket(self):
+    def rocket_collisions(self):
         if pygame.sprite.spritecollideany(self.ship, self.rockets):
             self.life_times -= 1
             self.grade -= 2
@@ -169,7 +184,7 @@ class Fight:
             if self.life_times < 0:
                 self.game_state=0
                 pygame.mouse.set_visible(True)
-
+    #击败boss
     def hit_boss(self):
         if self.boss is not None:
             boss_collisions = pygame.sprite.spritecollide(self.boss, self.bullets, True)  # 获取碰撞的子弹
@@ -184,7 +199,7 @@ class Fight:
                 self.game_state=2
                 self.boss=None
                 pygame.time.set_timer(self.BOSS_FIRE_EVENT, 0)  # 每 500 毫秒触发一次事件
-
+    #boss碰撞
     def boss_collisions(self):
         if self.game_state == 3 and self.boss:
             # 飞船与Boss碰撞
@@ -206,7 +221,7 @@ class Fight:
                     self.game_state = 0
                     pygame.mouse.set_visible(True)
 
-
+    #碰撞后更新清理屏幕
     def clean_up(self):
             for bullet in self.bullets.copy():
                 if bullet.rect.bottom <= 0:
@@ -218,7 +233,7 @@ class Fight:
                 if rocket.rect.bottom >= self.settings.screen_height:
                     self.rockets.remove(rocket)
             # print('子弹数量:'+str(len(self.bullets))+' 敌机数量:'+str(len(self.enemies)))
-
+    #检查碰撞
     def check_collisions(self):
         collisions = pygame.sprite.groupcollide(self.bullets, self.enemies, True, True)
         # 为每个被击中的敌人创建爆炸效果
@@ -230,7 +245,7 @@ class Fight:
                 if random.randint(1, 30) <= self.settings.upgrade_probability - self.grade:
                     self.upgrade_ship(enemy.rect.center)
 
-
+    #检查升级
     def check_upgrades(self):
         collided_upgrades = pygame.sprite.spritecollide(self.ship, self.upgrades, True)
         for upgrades in collided_upgrades:
@@ -243,7 +258,7 @@ class Fight:
                 self.bg_color = (255, 190, 190)
                 self.sound.play('super_shot')
 
-
+    #绑定鼠标点击事件
     def check_events(self):
         for event in pygame.event.get():
             # 退出游戏
@@ -253,21 +268,35 @@ class Fight:
             # 鼠标点击开始按钮
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
-                if self.game_state==0:
+                if self.game_state==0 and self.game_setting==0:
                     if self.play_button.rect.collidepoint(mouse_pos):
                         self.life_times=self.settings.life_times
                         self.live_button = Button(self, 'Lives:' + str(self.life_times), 200, 50, 0, 0)
                         pygame.mouse.set_visible(False)
                         self.game_state = 2
+                    if self.exit_button.rect.collidepoint(mouse_pos):
+                        sys.exit()
                     if self.instruction_button.rect.collidepoint(mouse_pos):
                         self.game_state = 1
-                if self.game_state==1:
+                elif self.game_state==1 and self.game_setting==0:
                     if self.back_button.rect.collidepoint(mouse_pos):
                         self.game_state = 0
+                elif self.game_setting==1:
+                    if self.return_init_button.rect.collidepoint(mouse_pos):
+                        self.game_state = 0
+                        self.game_setting = 0
+                        pygame.mouse.set_visible(True)
+                    if self.restart_button.rect.collidepoint(mouse_pos):
+                        self.game_state = 2
+                        self.game_setting = 0
+                        pygame.mouse.set_visible(False)
+                    if self.continue_button.rect.collidepoint(mouse_pos):
+                        self.game_setting = 0
+
 
             # 按键松开 0 退出
             elif event.type == pygame.KEYUP and event.key == pygame.K_0:
-                sys.exit()
+                self.game_setting = 1 if self.game_setting == 0 else  0
 
             # 游戏进行中才响应键盘事件
             if self.game_state>=2:
@@ -301,7 +330,7 @@ class Fight:
                         self.ship.moving_up = False
                     elif event.key == pygame.K_DOWN:
                         self.ship.moving_down = False
-
+    # 敌机出现
     def enemies_coming(self):
         temp = random.randint(1, 30000)
         if len(self.enemies)<self.settings.enemy_max_num and temp <= self.enemy_probability:
@@ -316,18 +345,17 @@ class Fight:
                 self.enemy_probability=self.settings.enemy_probability/2
                 self.remain_enemies=self.settings.remain_enemies
                 pygame.time.set_timer(self.BOSS_FIRE_EVENT, int(self.settings.boss_fire_speed*1000))  # 每 500 毫秒触发一次事件
-
-
+    #火箭出现
     def rockets_coming(self):
         temp = random.randint(1, 30000)
         if len(self.rockets)<self.settings.rocket_max_num and temp <= self.settings.rocket_probability:
             new_rocket = Rocket(self)
             self.rockets.add(new_rocket)
-
+    #
     def upgrade_ship(self,center):
         new_upgrade = Upgrade(self,center)
         self.upgrades.add(new_upgrade)
-
+    # Boss开火
     def boss_fire_bullet(self):
         new_boss_bullet = Boss_Bullet(self, 0, 0)
         self.boss_bullets.add(new_boss_bullet)
@@ -335,7 +363,7 @@ class Fight:
         self.boss_bullets.add(new_boss_bullet)
         new_boss_bullet = Boss_Bullet(self, 20, -10,0.3)
         self.boss_bullets.add(new_boss_bullet)
-
+    # 开火
     def fire_bullet(self):
         new_bullet = Bullet(self,0,0)
         self.bullets.add(new_bullet)
@@ -367,12 +395,22 @@ class Fight:
             new_bullet_right_back = Bullet(self, 10,40)  # 向右偏移20像素
             self.bullets.add(new_bullet_right_back)
 
+    def setting_menu(self):
+        pygame.mouse.set_visible(True)
+        self.screen.fill(self.bg_color)
+        self.restart_button.draw_button()
+        self.return_init_button.draw_button()
+        self.continue_button.draw_button()
+        pygame.display.flip()
 
+
+    # 刷新屏幕
     def update_screen(self):
         self.screen.fill(self.bg_color)
         self.live_button.draw_button()
         if self.game_state== 0:
             self.play_button.draw_button()
+            self.exit_button.draw_button()
             self.instruction_button.draw_button()
         elif self.game_state == 1:
             line_height = 40  # 每行间隔 40 像素
@@ -387,7 +425,7 @@ class Fight:
                 text_rect.y = start_y + i * line_height  # 每行间隔 40 像素
                 self.screen.blit(text_surface, text_rect)
             self.back_button.draw_button()
-        elif self.game_state >= 2 :
+        elif self.game_state == 2 or self.game_state == 3 :
             self.ship.blitme()
             for bullet in self.bullets.sprites():
                 bullet.draw_bullet()
@@ -407,7 +445,6 @@ class Fight:
                     boss_bullet.draw_bullet()
                 self.boss.update()
                 self.boss.draw_boss()
-
         pygame.display.flip()
 
 
