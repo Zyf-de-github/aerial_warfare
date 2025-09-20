@@ -15,6 +15,7 @@ from boss import Boss
 from boss_bullet import Boss_Bullet
 from sound import Sound
 from music import Music
+from wave import Wave
 import random
 
 class Fight:
@@ -45,6 +46,8 @@ class Fight:
         self.game_setting=0  #0:取消设置 1:设置
         self.life_times=self.settings.life_times
         self.points=0
+        self.weapon_state=0
+        self.chose_weapon_button = Button(self, 'Chose weapon',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2-275)
         self.play_button = Button(self, 'Play',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2-125)
         self.instruction_button = Button(self, 'instruction_button',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+25)
         self.exit_button = Button(self, 'Exit',400,70,self.settings.screen_width/2-200, self.settings.screen_height/2+175)
@@ -56,20 +59,25 @@ class Fight:
 
         self.back_button = Button(self, 'Back',200,70,self.settings.screen_width/2-100, self.settings.screen_height-125)
         self.live_button = Button(self, 'Lives:'+str(self.life_times),200,50,0,0)
-        self.points_button = Button(self, 'Points:'+str(self.points),300,50,self.settings.screen_width-300,0)
+        self.points_button = Button(self, 'Points:'+str(self.points),400,50,self.settings.screen_width-400,0)
+        self.weapon_button = Button(self, 'Weapon:shotgun',400,50,self.settings.screen_width-400,50)
 
 
         self.instructions = [
-            "游戏说明                         ",
-            "控制:                           ",
-            "  - 操控上下左右箭头移动飞船        ",
-            "  - 按下0进入菜单                 ",
-            "物品:                           ",
-            "  - 收集升级部件升级飞船(最高升到六级)",
-            "提示:                           ",
-            "  - 攻击敌方飞船有概率掉落升级部件    ",
-            "  - 被攻击后会受伤，你只有两条命      ",
-            "  - 火箭弹注意躲避，你无法击落它      "
+            "游戏说明                             ",
+            "控制:                               ",
+            "      - 操控上下左右箭头移动飞船        ",
+            "      - 按下0进入菜单                 ",
+            "物品:                                ",
+            "      - 收集升级部件升级飞船(最高升到六级)",
+            "提示:                               ",
+            "      - 攻击敌方飞船有概率掉落升级部件    ",
+            "      - 被攻击后会受伤，你只有两条命      ",
+            "      - 火箭弹注意躲避，你无法击落它      ",
+            "武器:                                ",
+            "      - 霰弹：子弹密集，伤害较高         ",
+            "      - 微波：子弹面积大，伤害略低        "
+
         ]
 
         self.AUTO_FIRE_EVENT = pygame.USEREVENT + 1
@@ -93,7 +101,7 @@ class Fight:
                 self.music.update()
                 if self.game_state == 0 or self.game_state == 1:
                     self.points =0
-                    self.points_button = Button(self, 'Points:' + str(self.points), 300, 50,self.settings.screen_width - 300, 0)
+                    self.points_button = Button(self, 'Points:' + str(self.points), 400, 50,self.settings.screen_width - 400, 0)
 
                     pygame.mouse.set_visible(True)
                 if self.game_setting == 0:
@@ -198,7 +206,7 @@ class Fight:
                 self.explosions.add(explosion)
             if self.boss.boss_blood <= 0:
                 self.points += 100
-                self.points_button = Button(self, 'Points:' + str(self.points), 300, 50,self.settings.screen_width - 300, 0)
+                self.points_button = Button(self, 'Points:' + str(self.points), 400, 50,self.settings.screen_width - 400, 0)
 
                 explosion = Explosion(self.boss.rect.center, self,3)  # Boss死亡时大爆炸
                 self.sound.play('big_boom')
@@ -246,7 +254,7 @@ class Fight:
         for bullet, hit_enemies in collisions.items():
             for enemy in hit_enemies:
                 self.points += 1
-                self.points_button = Button(self, 'Points:' + str(self.points), 300, 50,self.settings.screen_width - 300, 0)
+                self.points_button = Button(self, 'Points:' + str(self.points), 400, 50,self.settings.screen_width - 400, 0)
                 explosion = Explosion(enemy.rect.center, self)
                 self.explosions.add(explosion)
                 self.sound.play('boom')
@@ -281,6 +289,15 @@ class Fight:
                         self.life_times=self.settings.life_times
                         self.live_button = Button(self, 'Lives:' + str(self.life_times), 200, 50, 0, 0)
                         self.game_state = 2
+                    if self.chose_weapon_button.rect.collidepoint(mouse_pos):
+                        self.weapon_state+=1
+                        self.weapon_state%=2
+                        if self.weapon_state==0:
+                            self.weapon_button = Button(self, 'Weapon:shotgun', 400, 50,
+                                                        self.settings.screen_width - 400, 50)
+                        else:
+                            self.weapon_button = Button(self, 'Weapon:microwave', 400, 50,
+                                                        self.settings.screen_width - 400, 50)
                     if self.exit_button.rect.collidepoint(mouse_pos):
                         sys.exit()
                     if self.instruction_button.rect.collidepoint(mouse_pos):
@@ -317,7 +334,10 @@ class Fight:
             if self.game_state>=2:
                 # 按键按下
                 if event.type == self.AUTO_FIRE_EVENT:
-                    self.fire_bullet()
+                    if self.weapon_state==0:
+                        self.fire_bullet()
+                    elif self.weapon_state==1:
+                        self.fire_wave()
                 if event.type == self.SUPER_SHOOTING_EVENT_STOP:
                     pygame.time.set_timer(self.AUTO_FIRE_EVENT, int(self.settings.bullets_speed * 1000))
                     pygame.time.set_timer(self.SUPER_SHOOTING_EVENT_STOP, 0)
@@ -410,6 +430,31 @@ class Fight:
             new_bullet_right_back = Bullet(self, 10,40)  # 向右偏移20像素
             self.bullets.add(new_bullet_right_back)
 
+    def fire_wave(self):
+        new_wave = Wave(self,0,0)
+        self.bullets.add(new_wave)
+        if self.grade >= 2:
+            new_wave_left_0 = Wave(self, 0,7,-0.15)  # 向左偏移20像素
+            self.bullets.add(new_wave_left_0)
+            new_wave_right_0 = Wave(self, 0,7,0.15)  # 向左偏移20像素
+            self.bullets.add(new_wave_right_0)
+        if self.grade >= 3:
+            new_wave_down = Wave(self, 0,25,0)  # 向左偏移20像素
+            self.bullets.add(new_wave_down)
+        if self.grade >= 4:
+            new_wave_down_0 = Wave(self, 0, 40, 0)  # 向左偏移20像素
+            self.bullets.add(new_wave_down_0)
+        if self.grade >= 5:
+            new_wave_left_1 = Wave(self, 0,47,-0.3)  # 向左偏移20像素
+            self.bullets.add(new_wave_left_1)
+            new_wave_right_1 = Wave(self, 0,47,0.3)  # 向左偏移20像素
+            self.bullets.add(new_wave_right_1)
+        if self.grade >= 6:
+            new_wave_down_1 = Wave(self, 0,60,0)  # 向左偏移20像素
+            self.bullets.add(new_wave_down_1)
+
+
+
     def setting_menu(self):
         self.screen.fill(self.bg_color)
         self.restart_button.draw_button()
@@ -423,8 +468,10 @@ class Fight:
         self.screen.fill(self.bg_color)
         self.live_button.draw_button()
         self.points_button.draw_button()
+        self.weapon_button.draw_button()
         if self.game_state== 0:
             self.play_button.draw_button()
+            self.chose_weapon_button.draw_button()
             self.exit_button.draw_button()
             self.instruction_button.draw_button()
         elif self.game_state == 1:

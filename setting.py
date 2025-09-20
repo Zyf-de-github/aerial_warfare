@@ -33,6 +33,6 @@ class Settings:
         self.life_times=2
         self.upgrade_speed=0.3
         self.upgrade_hit_times=2
-        self.grade=1
+        self.grade=5
         self.upgrade_probability=9 #6-30
 
